@@ -7,11 +7,8 @@
 	<meta name="viewport" content="width=device-width, user-scalable=no
 		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
 
-	<title>Microbit Panic Button</title>
+	<title>Microbit StepOmeter</title>
 
-	<style>
-		@import 'ui/css/evothings-app.css';
-	</style>
 
 	<script>
 	// Redirect console.log to Evothings Workbench.
@@ -24,28 +21,138 @@
 	<script src="libs/evothings/easyble/easyble.js"></script>
 	<script src="libs/evothings/util/util.js"></script>
 	<script src="app.js"></script>
+	<script src="./web/bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+
+	<!-- Polymer components -->
+    <link rel="import" href="./web/bower_components/paper-progress/paper-progress.html">
+    <link rel="import" href="./web/bower_components/paper-button/paper-button.html">
+    <link rel="import" href="./web/bower_components/iron-icons/iron-icons.html">
+    <link rel="import" href="./web/bower_components/iron-icons/image-icons.html">
+    <link rel="import" href="./web/bower_components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="./web/bower_components/paper-card/paper-card.html">
+    <link rel="import" href="./web/bower_components/paper-dialog/paper-dialog.html">
+    <link rel="import" href="./web/bower_components/paper-toggle-button/paper-toggle-button.html">
+    <link rel="import" href="./web/bower_components/iron-flex-layout/iron-flex-layout.html">
+
+    <link rel="import" href="./web/bower_components/paper-dialog/paper-dialog.html">
+    <link rel="import" href="./web/bower_components/paper-button/paper-button.html">
+    <link rel="import" href="./web/bower_components/paper-input/paper-input.html">
+
+    <link rel="import" href="./web/bower_components/paper-styles/color.html">
+    <link rel="stylesheet" href="./web/bower_components/paper-styles/demo.css">
+    <link rel="stylesheet" href="./web/style.css">
+
+    <style is="custom-style">
+        body {
+            background-color: var(--paper-grey-50);
+        }
+
+        paper-progress {
+            width: 100%;
+        }
+
+        paper-progress.blue {
+            paper-progress-active-color: var(--paper-light-blue-500);
+            paper-progress-secondary-color: var(--paper-light-blue-100);
+        }
+
+        paper-toggle-button.blue {
+            --paper-toggle-button-checked-bar-color: var(--paper-light-blue-500);
+            --paper-toggle-button-checked-button-color: var(--paper-light-blue-500);
+            --paper-toggle-button-checked-ink-color: var(--paper-light-blue-500);
+            --paper-toggle-button-unchecked-bar-color: var(--paper-light-blue-900);
+            --paper-toggle-button-unchecked-button-color: var(--paper-light-blue-900);
+            --paper-toggle-button-unchecked-ink-color: var(--paper-light-blue-900);
+        }
+
+        paper-button {
+            display: block;
+            width: 80px;
+            height: 40px;
+            min-width: 0em;
+            margin: 0.2em 0.2em;
+        }
+
+        paper-button.blue {
+            color: var(--paper-light-blue-500);
+            paper-button-flat-focus-color: var(--paper-light-blue-50);
+        }
+
+        #cards {
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 400px;
+        }
+
+        paper-card {
+            margin-bottom: 5px;
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        .flex {
+            @apply(--layout-horizontal);
+        }
+
+        paper-button.indigo {
+            background-color: var(--paper-indigo-500);
+            color: white;
+            --paper-button-raised-keyboard-focus: {
+                background-color: var(--paper-pink-a200) !important;
+                color: white !important;
+            }
+            ;
+        }
+    </style>
 
 </head>
 
-<body ontouchstart=""><!-- ontouchstart="" enables low-delay CSS transitions. -->
+<body unresolved>
+    <template id="template" is="dom-bind">
+      <div id="cards">
+        <paper-card heading="BBC micro:bit StepOmeter">
+          <div class="card-content">
+            <paper-toggle-button class="blue" id="connect">Connect</paper-toggle-button>
+            <paper-progress id="progress" indeterminate></paper-progress>
+          </div>
+        </paper-card>
 
-	<h1>Microbit Panic Button</h1>
+        
+        <paper-card id="panel">
+          <div class="card-content">
+            <div class="container flex">
+              <paper-input always-float-label label="Status" id="Status"></paper-input>
+            </div>
+          </div>
+        </paper-card>
 
-	<button onclick="app.onStartButton()" class="green">
-		Connect
-	</button>
+        <paper-card id="steptrack" heading="Step: 0">
 
-	<button onclick="app.onStopButton()" class="charcoal">
-		Disconnect
-	</button>
 
-	<p>
-		<strong>Status:</strong> <span id="Status">Press Connect to find the nearest Microbit</span>
-	</p>
+        <paper-dialog id="errorDialog">
+          <h2>Error</h2>
+          <p>Could not connect to bluetooth device!</p>
+        </paper-dialog>
+      </div>
+    </template>
 
-	<!--p>
-		<button onclick="toggleSensors()" class="charcoal">Toggle sensors</button>
-	</p-->
+     <script>
+      'use strict';
+      document.addEventListener('WebComponentsReady', () => {
+        let connectToggle = document.querySelector('#connect');
+        connectToggle.addEventListener('change', () => {
+
+        	if (app.gattServer != null) {
+        		app.onStopButton();
+        		console.log('stop');
+        	} else {
+            	app.onStartButton();
+            	console.log('start');
+            }
+          
+        });
+      });
+    </script>
 
 	
 </body>

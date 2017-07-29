@@ -51,6 +51,7 @@ public class FirebaseDatabasePlugin extends CordovaPlugin {
         this.cordova.getThreadPool().execute(new Runnable() {
             public void run() {
                 Log.d(TAG, "Starting Firebase plugin");
+                //FirebaseDatabase.getInstance().setPersistenceEnabled(true);
                 mDatabase = FirebaseDatabase.getInstance().getReference();
                 mAuth = FirebaseAuth.getInstance();
             }

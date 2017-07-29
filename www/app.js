@@ -14,8 +14,9 @@ app.CONNECT_TIMEOUT = 3000;
  * Object that holds Microbit UUIDs.
  */
 app.microbit = {};
-var firebaseThings;
-
+app.firebaseThings;
+app.idx = 0;
+app.gattServer;
 
 app.microbit.EVENT_SERVICE = 'e95d93af-251d-470a-a062-fa1922dfa9a8';
 app.microbit.EVENT_CHARACTERISTIC = 'e95d9775-251d-470a-a062-fa1922dfa9a8';
@@ -43,8 +44,9 @@ function onConnect(context) {
 
 app.onDeviceReady = function()
 {
-	app.showInfo('Activate the Microbit and tap Start.');
-	firebaseThings = window.FirebaseDatabasePlugin.ref('GPS');
+	app.showInfo('Activate the Microbit and toggle Connect button.');
+	var progress = document.querySelector('#progress');
+	progress.hidden = true;
 }
 
 
@@ -55,11 +57,24 @@ app.writeLatLong = function()
 	var onSuccess = function(position) {
 		var lat = position.coords.latitude;
 		var long = position.coords.longitude;  
+		Number.prototype.padLeft = function(base,chr){
+			var  len = (String(base || 10).length - String(this).length)+1;
+			return len > 0? new Array(len).join(chr || '0')+this : this;
+		}
 
-		firebaseThings.updateChildren({
-		    'lat' : lat,
-		    'long' : long
+	    var d = new Date, dformat = [ (d.getMonth()+1).padLeft(), d.getDate().padLeft(),d.getFullYear()].join('/')+ ' ' + [ d.getHours().padLeft(), d.getMinutes().padLeft(), d.getSeconds().padLeft()].join(':');
+
+		app.firebaseThings = window.FirebaseDatabasePlugin.ref(app.idx);
+
+		app.firebaseThings.updateChildren({
+			'lat' : lat,
+    		'long' : long,
+    		'ts': dformat 
 		});
+
+		app.idx = app.idx + 1;
+		console.log(app.idx);
+		document.getElementById("steptrack").heading =  "Step: " + app.idx;
 	}
 
 	function onError(error) {
@@ -68,8 +83,6 @@ app.writeLatLong = function()
     }
 
 	navigator.geolocation.getCurrentPosition(onSuccess, onError);
-
-	
 
 }
 
@@ -83,7 +96,11 @@ app.onStartButton = function()
 	app.onStopButton();
 	app.startScan();
 	app.showInfo('Status: Scanning...');
+	var progress = document.querySelector('#progress');
+	progress.hidden = false;
 	app.startConnectTimer();
+	app.idx = 0;
+	app.gattServer = null;
 }
 
 app.onStopButton = function()
@@ -93,6 +110,7 @@ app.onStopButton = function()
 	evothings.easyble.stopScan();
 	evothings.easyble.closeConnectedDevices();
 	app.showInfo('Status: Stopped.');
+	app.gattServer = null;
 }
 
 app.startConnectTimer = function()
@@ -104,6 +122,11 @@ app.startConnectTimer = function()
 		{
 			app.showInfo('Status: Scanning... ' +
 				'Please start the Microbit.');
+			var connectToggle = document.querySelector('#connect');
+			var progress = document.querySelector('#progress');
+        	
+        	connectToggle.checked = false;
+            progress.hidden = true;
 		},
 		app.CONNECT_TIMEOUT)
 }
@@ -130,6 +153,8 @@ app.startScan = function()
 		function(errorCode)
 		{
 			app.showInfo('Error: startScan: ' + errorCode + '.');
+			var dialog = document.querySelector('#errorDialog');
+			dialog.open();
 		});
 }
 
@@ -152,11 +177,23 @@ app.connectToDevice = function(device)
 		function(device)
 		{
 			app.showInfo('Status: Connected - reading Microbit services...');
+
+
+			var connectToggle = document.querySelector('#connect');
+        	var progress = document.querySelector('#progress');
+        	var dialog = document.querySelector('#errorDialog');
+      		app.gattServer = device;
+
+        	connectToggle.checked = true;
+            progress.hidden = true;
 			app.readServices(device);
 		},
 		function(errorCode)
 		{
 			app.showInfo('Error: Connection failed: ' + errorCode + '.');
+			var dialog = document.querySelector('#errorDialog');
+			dialog.open();
+			app.gattServer = null;
 			evothings.ble.reset();
 		});
 }
@@ -228,7 +265,7 @@ app.writeNotificationDescriptor = function(device, characteristicUUID)
  */
 app.startNotifications = function(device)
 {
-	app.showInfo('Status: Starting notifications...');
+	app.showInfo('Status: Ready');
 
 	// Due to https://github.com/evothings/cordova-ble/issues/30
 	// ... we have to do double work to make it function properly
