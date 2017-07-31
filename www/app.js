@@ -17,6 +17,13 @@ app.microbit = {};
 app.firebaseThings;
 app.idx = 0;
 app.gattServer;
+app.device;
+
+app.fromLat = 0;
+app.fromLong = 0;
+app.toLat = 0;
+app.toLong = 0;
+
 
 app.microbit.EVENT_SERVICE = 'e95d93af-251d-470a-a062-fa1922dfa9a8';
 app.microbit.EVENT_CHARACTERISTIC = 'e95d9775-251d-470a-a062-fa1922dfa9a8';
@@ -49,41 +56,57 @@ app.onDeviceReady = function()
 	progress.hidden = true;
 }
 
+function toRad(deg) {
+    return deg * Math.PI / 180;
+}
+
+function toDeg(rad) {
+    return rad * 180 / Math.PI;
+}      
+
+function Bearing(lat1,lng1,lat2,lng2) {
+	var dLon = toRad(lng2-lng1);
+    lat1 = toRad(lat1);
+    lat2 = toRad(lat2);
+    var y = Math.sin(dLon) * Math.cos(lat2);
+    var x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+    var rad = Math.atan2(y, x);
+    var brng = toDeg(rad);
+    return (brng + 360) % 360;
+}
 
 
-app.writeLatLong = function()
+function getLatLong(cb)
 {
-	
 	var onSuccess = function(position) {
-		var lat = position.coords.latitude;
-		var long = position.coords.longitude;  
-		Number.prototype.padLeft = function(base,chr){
-			var  len = (String(base || 10).length - String(this).length)+1;
-			return len > 0? new Array(len).join(chr || '0')+this : this;
-		}
-
-	    var d = new Date, dformat = [ (d.getMonth()+1).padLeft(), d.getDate().padLeft(),d.getFullYear()].join('/')+ ' ' + [ d.getHours().padLeft(), d.getMinutes().padLeft(), d.getSeconds().padLeft()].join(':');
-
-		app.firebaseThings = window.FirebaseDatabasePlugin.ref(app.idx);
-
-		app.firebaseThings.updateChildren({
-			'lat' : lat,
-    		'long' : long,
-    		'ts': dformat 
-		});
-
-		app.idx = app.idx + 1;
-		console.log(app.idx);
-		document.getElementById("steptrack").heading =  "Step: " + app.idx;
+		cb(position);
 	}
 
 	function onError(error) {
         console.log('code: ' + error.code + '\n' +
               'message: ' + error.message + '\n');
+        cb('error');
     }
 
 	navigator.geolocation.getCurrentPosition(onSuccess, onError);
 
+}
+
+app.sendInfo = function(cmd)
+{
+	var bytes = []; // char codes
+    var sbyte;
+    var cmd1;
+    var code;
+    for (var i = 0; i < cmd.length; ++i) {
+    	code = cmd.charCodeAt(i);
+        bytes = bytes.concat([code]);
+    }
+
+	var cmdPinAd = [0x22B8, cmd];
+	cmd = new Uint16Array([0x22B8, new Uint8Array(bytes)]);
+	console.log(cmd);
+	app.writeCharacteristicUint16(app.device, app.microbit.CLIENTEVENT_CHARACTERISTIC, cmd);
 }
 
 app.showInfo = function(info)
@@ -228,7 +251,7 @@ app.writeCharacteristic = function(device, characteristicUUID, value) {
 app.writeCharacteristicUint16 = function(device, characteristicUUID, value) {
 	device.writeCharacteristic(
 		characteristicUUID,
-		new Uint16Array([0x22B8, 0x00]),
+		value,
 		function()
 		{
 			console.log('writeCharacteristic '+characteristicUUID+' ok.');
@@ -267,6 +290,8 @@ app.startNotifications = function(device)
 {
 	app.showInfo('Status: Ready');
 
+	//app.readDeviceInfo(device);
+
 	// Due to https://github.com/evothings/cordova-ble/issues/30
 	// ... we have to do double work to make it function properly
 	// on both Android and iOS. This first part is only needed for Android
@@ -276,10 +301,13 @@ app.startNotifications = function(device)
 	app.writeNotificationDescriptor(device, app.microbit.EVENT_CHARACTERISTIC);
 	app.writeNotificationDescriptor(device, app.microbit.CLIENTEVENT_CHARACTERISTIC);
 	app.writeNotificationDescriptor(device, app.microbit.CLIENTREQUIREMENTS_CHARACTERISTIC);
+	app.device = device;
 
+	//var cmdPinAd = [0x22B8, 0x00];
 	var cmdPinAd = new Uint16Array([0x22B8, 0x00]);
 	app.writeCharacteristicUint16(device, app.microbit.CLIENTREQUIREMENTS_CHARACTERISTIC, cmdPinAd);
 
+	// Start Event notification.
 	device.enableNotification(
 		app.microbit.EVENT_CHARACTERISTIC,
 		app.handleEventValues,
@@ -287,7 +315,14 @@ app.startNotifications = function(device)
 		{
 			console.log('Error: enableNotification: ' + errorCode + '.');
 		});
+
+
 	
+}
+
+app.readDeviceInfo = function(device)
+{
+	//app.readCharacteristicUint16(device, app.microbit.MAGNETOMETER_PERIOD, 'Mag period');
 }
 
 
@@ -370,10 +405,94 @@ app.value = function(elementId, value)
 }
 
 
+function distance(lat1,lng1,lat2,lng2) 
+{
+    var R = 6371e3; 
+    var φ1 = toRad(lat1); 
+    var φ2 = toRad(lat2); 
+    var Δφ = toRad(lat2-lat1); 
+    var Δλ = toRad(lng2-lng1); 
+
+    var a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2); 
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    var d = R * c; 
+
+    return d; 
+}
+
+
 app.handleEventValues = function(data)
 {
-	app.writeLatLong();
+	var Distance = 0;
+	data = new Uint8Array(data);
+	var value = evothings.util.littleEndianToUint16(data, 2);
+
+	console.log(value);
+	if (value == 88) {
+		//get lat and long origin
+		getLatLong(function(position) {
+			if(position != 'error') {
+				app.fromLat = position.coords.latitude;
+				app.fromLong = position.coords.longitude;  
+				console.log(app.fromLat + '-' + app.fromLong);
+			}
+		});
+	}
+
+	if (value == 89) {
+		
+		if(app.fromLat != 0 && app.fromLong !=0) {
+			//get lat and long destination
+			getLatLong(function(position) {
+				if(position != 'error') {
+					app.toLat = position.coords.latitude;
+					app.toLong = position.coords.longitude; 
+					console.log(app.toLat + '-' + app.toLong);
+
+					Distance = distance(app.fromLat, app.fromLong, app.toLat, app.toLong);
+					console.log('Distance: ' + Distance);
+					document.getElementById('distance').heading = 'Distance: ' + Distance.toFixed(2) + ' m';
+
+					if (Distance > 0) {
+						var bearing = Bearing(app.fromLat, app.fromLong, app.toLat, app.toLong);
+						var point = '';
+						switch (Math.round(bearing*16/360)%16) { 
+					        case  0: point = 'N north';   break; 
+					        case  1: point = 'NNE north-northeast '; break; 
+					        case  2: point = 'NE north-east';  break; 
+					        case  3: point = 'ENE east-northeast'; break; 
+					        case  4: point = 'E east';   break; 
+					        case  5: point = 'ESE east-southeast'; break; 
+					        case  6: point = 'SE south-east';  break; 
+					        case  7: point = 'SSE south-southeast'; break; 
+					        case  8: point = 'S south';   break; 
+					        case  9: point = 'SSW south-southwest'; break; 
+					        case 10: point = 'SW south-west';  break; 
+					        case 11: point = 'WSW west-southwest'; break; 
+					        case 12: point = 'W west';   break; 
+					        case 13: point = 'WNW west-northwest'; break; 
+					        case 14: point = 'NW north-west';  break; 
+					        case 15: point = 'NNW north-northwest'; break; 
+					    } 
+					    document.getElementById('heading').heading = "Heading to: " + point;
+					} else
+						document.getElementById('heading').heading = "Heading to: nowhere";
+
+					app.fromLat = 0; app.fromLong = 0;
+					app.toLat = 0; app.fromLong = 0;
+
+
+				}
+
+			});
+		} else {
+			console.log('error');
+		}
+	}
+
 }
+
+
 
 
 // Initialize the app.

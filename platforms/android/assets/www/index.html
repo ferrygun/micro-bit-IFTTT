@@ -7,7 +7,7 @@
 	<meta name="viewport" content="width=device-width, user-scalable=no
 		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
 
-	<title>Microbit StepOmeter</title>
+	<title>Microbit Distance</title>
 
 
 	<script>
@@ -110,7 +110,7 @@
 <body unresolved>
     <template id="template" is="dom-bind">
       <div id="cards">
-        <paper-card heading="BBC micro:bit StepOmeter">
+        <paper-card heading="BBC micro:bit Distance">
           <div class="card-content">
             <paper-toggle-button class="blue" id="connect">Connect</paper-toggle-button>
             <paper-progress id="progress" indeterminate></paper-progress>
@@ -126,8 +126,8 @@
           </div>
         </paper-card>
 
-        <paper-card id="steptrack" heading="Step: 0">
-
+        <paper-card id="distance" heading="Distance: 0 m"></paper-card>
+        <paper-card id="heading" heading="Heading to: "></paper-card>
 
         <paper-dialog id="errorDialog">
           <h2>Error</h2>
@@ -151,6 +151,7 @@
             }
           
         });
+
       });
     </script>
 
