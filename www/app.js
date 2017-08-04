@@ -374,7 +374,7 @@ app.handleEventValues = function(data)
 	console.log(value);
 	if (value == 88) {
 		$.ajax({
-			url: 'https://maker.ifttt.com/trigger/microbit/with/key/d24g-zqVQtV2DP8Y4mCrCb',
+			url: 'https://maker.ifttt.com/trigger/<IFTTT_event>/with/key/<change_with_your_IFTTT_key>',
 			type: 'POST',
 			success: function(response) {
 				console.log(response);
