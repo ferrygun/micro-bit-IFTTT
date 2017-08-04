@@ -14,15 +14,8 @@ app.CONNECT_TIMEOUT = 3000;
  * Object that holds Microbit UUIDs.
  */
 app.microbit = {};
-app.firebaseThings;
-app.idx = 0;
 app.gattServer;
 app.device;
-
-app.fromLat = 0;
-app.fromLong = 0;
-app.toLat = 0;
-app.toLong = 0;
 
 
 app.microbit.EVENT_SERVICE = 'e95d93af-251d-470a-a062-fa1922dfa9a8';
@@ -56,41 +49,6 @@ app.onDeviceReady = function()
 	progress.hidden = true;
 }
 
-function toRad(deg) {
-    return deg * Math.PI / 180;
-}
-
-function toDeg(rad) {
-    return rad * 180 / Math.PI;
-}      
-
-function Bearing(lat1,lng1,lat2,lng2) {
-	var dLon = toRad(lng2-lng1);
-    lat1 = toRad(lat1);
-    lat2 = toRad(lat2);
-    var y = Math.sin(dLon) * Math.cos(lat2);
-    var x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
-    var rad = Math.atan2(y, x);
-    var brng = toDeg(rad);
-    return (brng + 360) % 360;
-}
-
-
-function getLatLong(cb)
-{
-	var onSuccess = function(position) {
-		cb(position);
-	}
-
-	function onError(error) {
-        console.log('code: ' + error.code + '\n' +
-              'message: ' + error.message + '\n');
-        cb('error');
-    }
-
-	navigator.geolocation.getCurrentPosition(onSuccess, onError);
-
-}
 
 app.sendInfo = function(cmd)
 {
@@ -122,8 +80,8 @@ app.onStartButton = function()
 	var progress = document.querySelector('#progress');
 	progress.hidden = false;
 	app.startConnectTimer();
-	app.idx = 0;
 	app.gattServer = null;
+	document.getElementById('info').heading = '';
 }
 
 app.onStopButton = function()
@@ -134,6 +92,7 @@ app.onStopButton = function()
 	evothings.easyble.closeConnectedDevices();
 	app.showInfo('Status: Stopped.');
 	app.gattServer = null;
+	document.getElementById('info').heading = '';
 }
 
 app.startConnectTimer = function()
@@ -405,21 +364,6 @@ app.value = function(elementId, value)
 }
 
 
-function distance(lat1,lng1,lat2,lng2) 
-{
-    var R = 6371e3; 
-    var φ1 = toRad(lat1); 
-    var φ2 = toRad(lat2); 
-    var Δφ = toRad(lat2-lat1); 
-    var Δλ = toRad(lng2-lng1); 
-
-    var a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2); 
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    var d = R * c; 
-
-    return d; 
-}
-
 
 app.handleEventValues = function(data)
 {
@@ -429,66 +373,20 @@ app.handleEventValues = function(data)
 
 	console.log(value);
 	if (value == 88) {
-		//get lat and long origin
-		getLatLong(function(position) {
-			if(position != 'error') {
-				app.fromLat = position.coords.latitude;
-				app.fromLong = position.coords.longitude;  
-				console.log(app.fromLat + '-' + app.fromLong);
-			}
+		$.ajax({
+			url: 'https://maker.ifttt.com/trigger/microbit/with/key/d24g-zqVQtV2DP8Y4mCrCb',
+			type: 'POST',
+			success: function(response) {
+				console.log(response);
+				document.getElementById('info').heading = response;
+		    },
+		    error: function(error) {
+				console.log(error);
+				document.getElementById('info').heading = error;
+		    }
 		});
 	}
-
-	if (value == 89) {
-		
-		if(app.fromLat != 0 && app.fromLong !=0) {
-			//get lat and long destination
-			getLatLong(function(position) {
-				if(position != 'error') {
-					app.toLat = position.coords.latitude;
-					app.toLong = position.coords.longitude; 
-					console.log(app.toLat + '-' + app.toLong);
-
-					Distance = distance(app.fromLat, app.fromLong, app.toLat, app.toLong);
-					console.log('Distance: ' + Distance);
-					document.getElementById('distance').heading = 'Distance: ' + Distance.toFixed(2) + ' m';
-
-					if (Distance > 0) {
-						var bearing = Bearing(app.fromLat, app.fromLong, app.toLat, app.toLong);
-						var point = '';
-						switch (Math.round(bearing*16/360)%16) { 
-					        case  0: point = 'N north';   break; 
-					        case  1: point = 'NNE north-northeast '; break; 
-					        case  2: point = 'NE north-east';  break; 
-					        case  3: point = 'ENE east-northeast'; break; 
-					        case  4: point = 'E east';   break; 
-					        case  5: point = 'ESE east-southeast'; break; 
-					        case  6: point = 'SE south-east';  break; 
-					        case  7: point = 'SSE south-southeast'; break; 
-					        case  8: point = 'S south';   break; 
-					        case  9: point = 'SSW south-southwest'; break; 
-					        case 10: point = 'SW south-west';  break; 
-					        case 11: point = 'WSW west-southwest'; break; 
-					        case 12: point = 'W west';   break; 
-					        case 13: point = 'WNW west-northwest'; break; 
-					        case 14: point = 'NW north-west';  break; 
-					        case 15: point = 'NNW north-northwest'; break; 
-					    } 
-					    document.getElementById('heading').heading = "Heading to: " + point;
-					} else
-						document.getElementById('heading').heading = "Heading to: nowhere";
-
-					app.fromLat = 0; app.fromLong = 0;
-					app.toLat = 0; app.fromLong = 0;
-
-
-				}
-
-			});
-		} else {
-			console.log('error');
-		}
-	}
+	
 
 }
 

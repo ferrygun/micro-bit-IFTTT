@@ -7,7 +7,7 @@
 	<meta name="viewport" content="width=device-width, user-scalable=no
 		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
 
-	<title>Microbit Distance</title>
+	<title>Microbit IFTTT</title>
 
 
 	<script>
@@ -15,6 +15,8 @@
 	if (window.hyper && window.hyper.log) { console.log = hyper.log }
 	</script>
 
+    <script src="js/jquery.js"></script>
+    <script src="js/jquery.mobile-1.4.5.min.js"></script>
 	<script src="cordova.js"></script>
 	<script src="libs/evothings/evothings.js"></script>
 	<script src="libs/evothings/ui/ui.js"></script>
@@ -110,7 +112,7 @@
 <body unresolved>
     <template id="template" is="dom-bind">
       <div id="cards">
-        <paper-card heading="BBC micro:bit Distance">
+        <paper-card heading="BBC micro:bit IFTTT">
           <div class="card-content">
             <paper-toggle-button class="blue" id="connect">Connect</paper-toggle-button>
             <paper-progress id="progress" indeterminate></paper-progress>
@@ -126,8 +128,7 @@
           </div>
         </paper-card>
 
-        <paper-card id="distance" heading="Distance: 0 m"></paper-card>
-        <paper-card id="heading" heading="Heading to: "></paper-card>
+        <paper-card id="info" heading=""></paper-card>
 
         <paper-dialog id="errorDialog">
           <h2>Error</h2>
